@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "postbuild": "node scripts/prepare-standalone.js",
+    "start": "node server.js",
     "lint": "eslint"
   },
   "dependencies": {
@@ -14,6 +15,7 @@
     "clsx": "^2.1.1",
     "lucide-react": "^1.70.0",
     "motion": "^14.10.1",
+    "mysql2": "^3.24.6",
     "next": "^16.2.12",
     "next-intl": "^4.13.1",
     "pg": "^8.22.0",

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { memberSignupSchema } from "@/lib/validations/forms";
+import { memberApplicationSchema, givingIntentSchema } from "@/lib/validations/forms";
 import { query } from "@/lib/db/client";
+import { ensureAdminSchema } from "@/lib/admin/schema";
 import { escapeHtml, sendNotificationEmail } from "@/lib/email/client";
 
 const interestLabels: Record<string, string> = {
@@ -10,22 +11,51 @@ const interestLabels: Record<string, string> = {
   "giving-intent": "Giving interest (Support IEDF)",
 };
 
-/**
- * Handles both "Become a Member/Volunteer" and "Support IEDF" (giving-intent)
- * submissions from the Join Us page — same shape, different `interest` value.
- *
- * Note: this sends an internal notification to IEDF, not a confirmation
- * email back to the submitter — that's a separate, not-yet-built feature
- * (an autoresponder) worth adding later if desired.
- */
+function text(formData: FormData, key: string) {
+  const value = formData.get(key);
+  return typeof value === "string" ? value.trim() : "";
+}
+
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
+  const interest = text(formData, "interest");
 
-  const parsed = memberSignupSchema.safeParse({
-    name: formData.get("name") || undefined,
-    email: formData.get("email"),
-    interest: formData.get("interest"),
-  });
+  const parsed =
+    interest === "giving-intent"
+      ? givingIntentSchema.safeParse({
+          interest: "giving-intent",
+          email: text(formData, "email"),
+          name: text(formData, "name") || undefined,
+        })
+      : memberApplicationSchema.safeParse({
+          interest,
+          name: text(formData, "name"),
+          email: text(formData, "email"),
+          phone: text(formData, "phone"),
+          whatsapp: text(formData, "whatsapp") || undefined,
+          residenceCountry: text(formData, "residenceCountry"),
+          residenceState: text(formData, "residenceState"),
+          residenceCity: text(formData, "residenceCity"),
+          residenceAddress: text(formData, "residenceAddress"),
+          birthPlace: text(formData, "birthPlace"),
+          birthState: text(formData, "birthState"),
+          birthCountry: text(formData, "birthCountry"),
+          school: text(formData, "school"),
+          qualification: text(formData, "qualification"),
+          occupation: text(formData, "occupation"),
+          reference1: {
+            name: text(formData, "ref1Name"),
+            phone: text(formData, "ref1Phone"),
+            village: text(formData, "ref1Village"),
+            relationship: text(formData, "ref1Relationship"),
+          },
+          reference2: {
+            name: text(formData, "ref2Name"),
+            phone: text(formData, "ref2Phone"),
+            village: text(formData, "ref2Village"),
+            relationship: text(formData, "ref2Relationship"),
+          },
+        });
 
   if (!parsed.success) {
     return NextResponse.json(
@@ -35,6 +65,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    await ensureAdminSchema();
     await query(
       `INSERT INTO submissions (form_type, payload, email) VALUES ($1, $2, $3)`,
       ["member_signup", JSON.stringify(parsed.data), parsed.data.email]
@@ -47,18 +78,30 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  console.log("[member signup] saved:", parsed.data);
-
   try {
-    const interest =
-      interestLabels[parsed.data.interest] ?? parsed.data.interest;
+    const data = parsed.data;
+    const label = interestLabels[data.interest] ?? data.interest;
+    const lines =
+      data.interest === "giving-intent"
+        ? ""
+        : `
+        <p><strong>Phone:</strong> ${escapeHtml(data.phone)}</p>
+        ${data.whatsapp ? `<p><strong>WhatsApp:</strong> ${escapeHtml(data.whatsapp)}</p>` : ""}
+        <p><strong>Lives in:</strong> ${escapeHtml(`${data.residenceAddress}, ${data.residenceCity}, ${data.residenceState}, ${data.residenceCountry}`)}</p>
+        <p><strong>Born:</strong> ${escapeHtml(`${data.birthPlace}, ${data.birthState}, ${data.birthCountry}`)}</p>
+        <p><strong>Schooled:</strong> ${escapeHtml(`${data.school} (${data.qualification})`)}</p>
+        <p><strong>Work / income:</strong> ${escapeHtml(data.occupation)}</p>
+        <p><strong>Reference 1:</strong> ${escapeHtml(`${data.reference1.name}, ${data.reference1.phone}, ${data.reference1.village} (${data.reference1.relationship})`)}</p>
+        <p><strong>Reference 2:</strong> ${escapeHtml(`${data.reference2.name}, ${data.reference2.phone}, ${data.reference2.village} (${data.reference2.relationship})`)}</p>
+      `;
     await sendNotificationEmail({
-      subject: `New Join Us submission: ${interest}`,
+      subject: `New Join Us submission: ${label}`,
       html: `
         <h2>New Join Us Submission</h2>
-        <p><strong>Interest:</strong> ${escapeHtml(interest)}</p>
-        ${parsed.data.name ? `<p><strong>Name:</strong> ${escapeHtml(parsed.data.name)}</p>` : ""}
-        <p><strong>Email:</strong> ${escapeHtml(parsed.data.email)}</p>
+        <p><strong>Interest:</strong> ${escapeHtml(label)}</p>
+        ${data.name ? `<p><strong>Name:</strong> ${escapeHtml(data.name)}</p>` : ""}
+        <p><strong>Email:</strong> ${escapeHtml(data.email)}</p>
+        ${lines}
       `,
     });
   } catch (err) {

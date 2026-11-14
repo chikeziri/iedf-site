@@ -24,11 +24,40 @@ export const contactFormSchema = z.object({
 
 export type ContactFormData = z.infer<typeof contactFormSchema>;
 
-export const memberSignupSchema = z.object({
-  name: z.string().min(2).optional(),
-  email: z.string().email("Please enter a valid email address"),
-  interest: z.enum(["member", "volunteer", "both", "giving-intent"]),
+const referenceSchema = z.object({
+  name: z.string().min(2, "Enter the reference's name"),
+  phone: z.string().min(7, "Enter a phone number"),
+  village: z.string().min(2, "Enter their village"),
+  relationship: z.string().min(2, "Say how you know them"),
 });
+
+export const givingIntentSchema = z.object({
+  interest: z.literal("giving-intent"),
+  email: z.string().email("Please enter a valid email address"),
+  name: z.string().min(2).optional(),
+});
+
+export const memberApplicationSchema = z.object({
+  interest: z.enum(["member", "volunteer", "both"]),
+  name: z.string().min(2, "Please enter your full name"),
+  email: z.string().email("Please enter a valid email address"),
+  phone: z.string().min(7, "Enter a phone number"),
+  whatsapp: z.string().optional(),
+  residenceCountry: z.string().min(2, "Enter the country where you live"),
+  residenceState: z.string().min(2, "Enter the state or region where you live"),
+  residenceCity: z.string().min(2, "Enter the city or town where you live"),
+  residenceAddress: z.string().min(3, "Enter your address"),
+  birthPlace: z.string().min(2, "Enter where you were born"),
+  birthState: z.string().min(2, "Enter the state where you were born"),
+  birthCountry: z.string().min(2, "Enter the country where you were born"),
+  school: z.string().min(2, "Enter where you schooled"),
+  qualification: z.string().min(2, "Enter your qualification"),
+  occupation: z.string().min(2, "Enter your work or source of income"),
+  reference1: referenceSchema,
+  reference2: referenceSchema,
+});
+
+export const memberSignupSchema = z.union([givingIntentSchema, memberApplicationSchema]);
 
 export type MemberSignupData = z.infer<typeof memberSignupSchema>;
 

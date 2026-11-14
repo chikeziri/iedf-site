@@ -10,14 +10,14 @@ export async function GET(request: NextRequest) {
   try {
     await ensureAdminSchema();
     const counts = await query<{ form_type: string; status: string; n: string }>(
-      `SELECT form_type, COALESCE(status, 'new') AS status, COUNT(*)::text AS n
+      `SELECT form_type, COALESCE(status, 'new') AS status, COUNT(*) AS n
        FROM submissions
        GROUP BY form_type, status`
     );
 
     let donations = 0;
     try {
-      const gift = await query<{ n: string }>(`SELECT COUNT(*)::text AS n FROM donations`);
+      const gift = await query<{ n: string }>(`SELECT COUNT(*) AS n FROM donations`);
       donations = Number(gift.rows[0]?.n || 0);
     } catch {
       donations = 0;

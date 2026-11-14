@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { adminNotConfigured, adminSessionToken, isAdminRequest, unauthorized } from "@/lib/admin/auth";
 import { ensureAdminSchema } from "@/lib/admin/schema";
-import { query } from "@/lib/db/client";
+import { dbDialect, query } from "@/lib/db/client";
 import { escapeHtml, sendReplyEmail } from "@/lib/email/client";
 
 const replySchema = z.object({
@@ -65,12 +65,27 @@ export async function POST(request: NextRequest, { params }: Ctx) {
       html,
     });
 
-    const saved = await query(
-      `INSERT INTO email_replies (submission_id, to_email, subject, body, resend_id)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, to_email, subject, body, resend_id, sent_at`,
-      [numericId, original.email, subject, body, sent?.id || null]
-    );
+    const replyValues = [numericId, original.email, subject, body, sent?.id || null];
+    const saved =
+      dbDialect() === "mysql"
+        ? await (async () => {
+            const inserted = await query(
+              `INSERT INTO email_replies (submission_id, to_email, subject, body, resend_id)
+               VALUES ($1, $2, $3, $4, $5)`,
+              replyValues
+            );
+            return query(
+              `SELECT id, to_email, subject, body, resend_id, sent_at
+               FROM email_replies WHERE id = $1`,
+              [inserted.insertId]
+            );
+          })()
+        : await query(
+            `INSERT INTO email_replies (submission_id, to_email, subject, body, resend_id)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING id, to_email, subject, body, resend_id, sent_at`,
+            replyValues
+          );
     await query(`UPDATE submissions SET status = 'replied' WHERE id = $1`, [numericId]);
 
     return NextResponse.json({ reply: saved.rows[0] });

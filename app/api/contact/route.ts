@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { contactFormSchema, inquiryRoutingMap } from "@/lib/validations/forms";
 import { query } from "@/lib/db/client";
+import { ensureAdminSchema } from "@/lib/admin/schema";
 import { escapeHtml, sendNotificationEmail } from "@/lib/email/client";
 
 /**
@@ -35,6 +36,7 @@ export async function POST(request: NextRequest) {
   const recipient = inquiryRoutingMap[parsed.data.inquiryType];
 
   try {
+    await ensureAdminSchema();
     await query(
       `INSERT INTO submissions (form_type, payload, email) VALUES ($1, $2, $3)`,
       ["contact", JSON.stringify(parsed.data), parsed.data.email]

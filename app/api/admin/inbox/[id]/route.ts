@@ -17,11 +17,16 @@ export async function GET(request: NextRequest, { params }: Ctx) {
 
   try {
     await ensureAdminSchema();
-    const message = await query(
+    await query(
       `UPDATE submissions
        SET status = CASE WHEN status = 'new' THEN 'read' ELSE status END
-       WHERE id = $1 AND form_type = 'contact'
-       RETURNING id, email, payload, status, created_at`,
+       WHERE id = $1 AND form_type = 'contact'`,
+      [numericId]
+    );
+    const message = await query(
+      `SELECT id, email, payload, status, created_at
+       FROM submissions
+       WHERE id = $1 AND form_type = 'contact'`,
       [numericId]
     );
     if (!message.rows[0]) {

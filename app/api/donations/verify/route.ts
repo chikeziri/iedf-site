@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyPaystackPayment } from "@/lib/payments/paystack";
 import { query } from "@/lib/db/client";
+import { ensureAdminSchema } from "@/lib/admin/schema";
 
 /**
  * API route to verify Paystack donations and log them to the database.
@@ -31,6 +32,7 @@ export async function POST(request: NextRequest) {
 
     // Store donation record in database
     try {
+      await ensureAdminSchema();
       await query(
         `INSERT INTO donations (
           reference, 

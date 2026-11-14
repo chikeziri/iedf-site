@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { newsletterSchema } from "@/lib/validations/forms";
 import { query } from "@/lib/db/client";
+import { ensureAdminSchema } from "@/lib/admin/schema";
 import { escapeHtml, sendNotificationEmail } from "@/lib/email/client";
 
 /**
@@ -33,6 +34,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    await ensureAdminSchema();
     await query(
       `INSERT INTO submissions (form_type, payload, email) VALUES ($1, $2, $3)`,
       ["newsletter", JSON.stringify(parsed.data), parsed.data.email]
