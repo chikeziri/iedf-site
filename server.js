@@ -1,5 +1,5 @@
 /**
- * Startup file for WhoGoHost DirectAdmin (Setup Node.js App).
+ * Startup file for the WhoGoHost cPanel Node.js application.
  * Set the application startup file to server.js.
  * The panel injects PORT. The app listens on 0.0.0.0 so the proxy can reach it.
  *

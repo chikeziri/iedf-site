@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
 /** Escape user-controlled strings before interpolating into HTML email bodies. */
 export function escapeHtml(value: string) {
@@ -20,6 +21,46 @@ export function escapeHtml(value: string) {
  * this runs, so a failed notification should never turn into a failed
  * request for the person submitting the form.
  */
+function smtpReady() {
+  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASSWORD);
+}
+
+/** WhoGoHost mailbox on port 587. Used when SMTP_HOST, SMTP_USER and SMTP_PASSWORD are set. */
+async function sendViaSmtp({
+  to,
+  subject,
+  html,
+  text,
+  replyTo,
+}: {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+  replyTo?: string;
+}) {
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT || 587),
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASSWORD,
+    },
+  });
+
+  const info = await transporter.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to,
+    subject,
+    html,
+    text,
+    replyTo: replyTo || process.env.ADMIN_NOTIFICATION_EMAIL || undefined,
+  });
+
+  return { id: info.messageId };
+}
+
 export async function sendNotificationEmail({
   subject,
   html,
@@ -27,8 +68,17 @@ export async function sendNotificationEmail({
   subject: string;
   html: string;
 }) {
-  const apiKey = process.env.RESEND_API_KEY;
   const toEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
+
+  if (smtpReady()) {
+    if (!toEmail) {
+      console.warn("[email] Skipped — ADMIN_NOTIFICATION_EMAIL is not set.");
+      return { skipped: true };
+    }
+    return sendViaSmtp({ to: toEmail, subject, html });
+  }
+
+  const apiKey = process.env.RESEND_API_KEY;
   // Resend's shared sandbox sender — works without verifying a domain,
   // but can only deliver to the email address you signed up to Resend
   // with, until IEDF verifies iedf.org.ng (or another domain) in the
@@ -37,8 +87,7 @@ export async function sendNotificationEmail({
 
   if (!apiKey || !toEmail) {
     console.warn(
-      "[email] Skipped — RESEND_API_KEY and/or ADMIN_NOTIFICATION_EMAIL not set. " +
-        "See README 'Connecting Resend' for setup."
+      "[email] Skipped — set SMTP_HOST/SMTP_USER/SMTP_PASSWORD, or RESEND_API_KEY and ADMIN_NOTIFICATION_EMAIL."
     );
     return { skipped: true };
   }
@@ -76,12 +125,16 @@ export async function sendReplyEmail({
   text: string;
   html: string;
 }) {
+  if (smtpReady()) {
+    return sendViaSmtp({ to, subject, html, text });
+  }
+
   const apiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL;
   const replyTo = process.env.ADMIN_NOTIFICATION_EMAIL;
 
   if (!apiKey) {
-    throw new Error("RESEND_API_KEY is not set. Add it to the server environment to send replies.");
+    throw new Error("Set SMTP_HOST, SMTP_USER and SMTP_PASSWORD, or RESEND_API_KEY, before sending replies.");
   }
   if (!fromEmail) {
     throw new Error(

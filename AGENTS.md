@@ -4,7 +4,7 @@ Living context file for any AI agent (or human) resuming work on this repo.
 **Read this first — it tells you what was done, how things work, and where to
 pick up next.** Keep it updated at the end of every work session.
 
-> Last session completed: **2026-11-14 — WhoGoHost launch build + membership form**
+> Last session completed: **2026-11-16 — WhoGoHost cPanel Node app + mailbox SMTP**
 > (Lifted near-black canvas to forest green; stronger gold aurora, glass,
 > header/footer accents). Verified: `npm run build` ✓.
 
@@ -144,6 +144,7 @@ cp .env.example .env.local    # DATABASE_URL, RESEND_*, ADMIN_*, SITE_URL
   escaping; Sanity `community` schema aligned; complete Igbo rewrite (362 keys
   parity); removed obsolete `igbuild/` + `NavDropdown.tsx`; root `app/layout.tsx`
   for fonts/metadata. Build + lint clean.
+- **2026-11-16 — WhoGoHost cPanel.** Node app root `app`, startup `server.js`, Node 20. Database `iedforgn_db`. Mail sends through `mail.iedf.org.ng:587` as `noreply@iedf.org.ng` when `SMTP_PASSWORD` is set; notifications go to `info@iedf.org.ng`. Passwords stay in the panel, not in git.
 - **2026-11-14 — WhoGoHost launch.** `output: "standalone"`, `server.js` listens on `PORT`, MySQL when `DATABASE_URL` is `mysql://` (Postgres still works). Membership form collects residence, contact, birthplace, schooling, work, and two village references.
 - **2026-11-10 — Admin console.** `/admin` sign-in via `ADMIN_SECRET` cookie.
   Mail inbox for contact submissions, replies through Resend
