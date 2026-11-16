@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
@@ -5,6 +6,9 @@ const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // WhoGoHost limits how many programs one account can start. Next otherwise
+  // opens several Node workers after compile and the host returns EAGAIN.
+  ...(fs.existsSync("/opt/alt") ? { experimental: { cpus: 1 } } : {}),
   async redirects() {
     return [
       { source: "/:locale(en|ig)/admin", destination: "/admin", permanent: false },
