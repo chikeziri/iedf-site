@@ -25,6 +25,7 @@ export function Header() {
     { href: `/${locale}/about`, label: t("about") },
     { href: `/${locale}/about-ikeduru`, label: t("aboutIkeduru") },
     { href: `/${locale}/projects`, label: t("projects") },
+    { href: `/${locale}/join-us`, label: t("membership") },
     { href: `/${locale}/donate`, label: t("donate") },
     { href: `/${locale}/news`, label: t("news") },
     { href: `/${locale}/contact`, label: t("contact") },
@@ -116,13 +117,6 @@ export function Header() {
               ))}
             </div>
 
-            <Link
-              href={`/${locale}/join-us`}
-              className="hidden rounded-full bg-[linear-gradient(115deg,#e8c76a,#c9982f)] px-4 py-2 text-[13px] font-bold text-night shadow-[0_6px_24px_-6px_rgba(201,152,47,0.6)] transition-all duration-300 hover:brightness-110 hover:shadow-[0_10px_32px_-6px_rgba(201,152,47,0.8)] sm:block"
-            >
-              {t("joinUs")}
-            </Link>
-
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
@@ -166,7 +160,7 @@ export function Header() {
               className="flex flex-1 flex-col justify-center gap-0.5 px-5"
               aria-label="Mobile primary"
             >
-              {[...links, { href: `/${locale}/join-us`, label: t("joinUs") }].map((item, i) => (
+              {links.map((item, i) => (
                 <motion.div
                   key={item.href}
                   initial={reduced ? { opacity: 1 } : { opacity: 0, x: -16 }}

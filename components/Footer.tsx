@@ -14,7 +14,7 @@ export async function Footer({ locale }: { locale: string }) {
   ];
   const getInvolved = [
     { href: `/${locale}/projects`, label: nav("projects") },
-    { href: `/${locale}/join-us`, label: nav("joinUs") },
+    { href: `/${locale}/join-us`, label: nav("membership") },
     { href: `/${locale}/contact`, label: nav("contact") },
   ];
 

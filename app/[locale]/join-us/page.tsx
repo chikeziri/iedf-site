@@ -8,7 +8,7 @@ import { SpotlightCard } from "@/components/SpotlightCard";
 import { Users, Gift, Sparkles, HeartHandshake } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Join Us",
+  title: "Membership",
   description:
     "Become a member or volunteer, register your interest in giving, or subscribe for updates.",
 };
