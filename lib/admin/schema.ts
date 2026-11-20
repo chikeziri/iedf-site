@@ -40,6 +40,18 @@ async function ensureMysql() {
       UNIQUE KEY uniq_donations_reference (reference)
     )
   `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS lead_touches (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      source VARCHAR(64) NOT NULL,
+      campaign VARCHAR(64) NOT NULL,
+      kind VARCHAR(32) NOT NULL,
+      path VARCHAR(255) NULL,
+      email VARCHAR(255) NULL,
+      amount DECIMAL(12, 2) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 }
 
 async function ensurePostgres() {
@@ -81,6 +93,18 @@ async function ensurePostgres() {
       status VARCHAR(50) DEFAULT 'success',
       paid_at TIMESTAMPTZ,
       metadata JSONB,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS lead_touches (
+      id SERIAL PRIMARY KEY,
+      source TEXT NOT NULL,
+      campaign TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      path TEXT,
+      email TEXT,
+      amount DECIMAL(12, 2),
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `);

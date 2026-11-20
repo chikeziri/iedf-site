@@ -8,6 +8,9 @@ import {
   formatNaira,
 } from "@/lib/payments/paystack";
 import { AlertCircle, CheckCircle, Heart } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { givingTiers, tierForAmount, type GivingTierId } from "@/lib/content/giving-tiers";
+import { LEAD_COOKIE, parseLead } from "@/lib/leads/attribution";
 
 // Extend Window to include PaystackPop
 declare global {
@@ -22,7 +25,15 @@ interface DonationFormProps {
   locale: string;
 }
 
+const tierNames: Record<GivingTierId, "tierPlatinum" | "tierGold" | "tierSilver" | "tierEmerald"> = {
+  platinum: "tierPlatinum",
+  gold: "tierGold",
+  silver: "tierSilver",
+  emerald: "tierEmerald",
+};
+
 export function DonationForm({ locale }: DonationFormProps) {
+  const t = useTranslations("donate");
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -132,6 +143,13 @@ export function DonationForm({ locale }: DonationFormProps) {
       currency: "NGN",
       ref: generatePaymentRef(),
       metadata: {
+        ...(typeof document !== "undefined"
+          ? (() => {
+              const match = document.cookie.split("; ").find((part) => part.startsWith(`${LEAD_COOKIE}=`));
+              const lead = parseLead(match ? decodeURIComponent(match.split("=").slice(1).join("=")) : null);
+              return lead ? { leadSource: lead.source, leadCampaign: lead.campaign } : {};
+            })()
+          : {}),
         custom_fields: [
           {
             display_name: "Full Name",
@@ -146,7 +164,12 @@ export function DonationForm({ locale }: DonationFormProps) {
           {
             display_name: "Purpose",
             variable_name: "purpose",
-            value: "IEDF General Donation",
+            value: "Skills Acquisition Centre appeal",
+          },
+          {
+            display_name: "Giving circle",
+            variable_name: "giving_tier",
+            value: tierForAmount(typeof amount === "number" ? amount : 0),
           },
         ],
       },
@@ -161,6 +184,15 @@ export function DonationForm({ locale }: DonationFormProps) {
     setAmount(preset);
     setCustomAmount("");
   };
+
+  const selectTier = (tierId: GivingTierId) => {
+    const tier = givingTiers.find((item) => item.id === tierId);
+    if (!tier) return;
+    setAmount(tier.amount);
+    setCustomAmount(String(tier.amount));
+  };
+
+  const activeTier = tierForAmount(typeof amount === "number" ? amount : 0);
 
   const handleCustomAmount = (value: string) => {
     setCustomAmount(value);
@@ -180,6 +212,31 @@ export function DonationForm({ locale }: DonationFormProps) {
       <div className="flex items-center gap-3">
         <Heart className="h-6 w-6 text-gold-bright" />
         <h3 className="font-display text-2xl text-ink">Support Our Work</h3>
+      </div>
+
+      <div className="space-y-3">
+        <label className="block text-sm font-medium text-ink">{t("tiersEyebrow")}</label>
+        <div className="grid grid-cols-2 gap-2">
+          {givingTiers.map((tier) => (
+            <button
+              key={tier.id}
+              type="button"
+              onClick={() => selectTier(tier.id)}
+              className={`rounded-xl border px-3 py-3 text-left transition-all duration-200 ${
+                activeTier === tier.id
+                  ? "border-gold/50 bg-gold/15 text-gold-bright"
+                  : "border-gold/15 bg-forest/20 text-ink-muted hover:border-gold/30 hover:text-ink"
+              }`}
+            >
+              <span className="block font-data text-[10px] uppercase tracking-[0.16em]">
+                {t(tierNames[tier.id])}
+              </span>
+            </button>
+          ))}
+        </div>
+        {typeof amount === "number" && amount > 0 && (
+          <p className="text-xs text-gold-pale">{t("tierCurrent", { tier: t(tierNames[activeTier]) })}</p>
+        )}
       </div>
 
       {/* Amount selection */}

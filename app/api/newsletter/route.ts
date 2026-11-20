@@ -3,6 +3,8 @@ import { newsletterSchema } from "@/lib/validations/forms";
 import { query } from "@/lib/db/client";
 import { ensureAdminSchema } from "@/lib/admin/schema";
 import { escapeHtml, sendNotificationEmail } from "@/lib/email/client";
+import { leadFromRequest } from "@/lib/leads/attribution";
+import { recordLead, withLead } from "@/lib/leads/record";
 
 /**
  * Per Technical Architecture Section 5, the long-term plan is to post
@@ -33,12 +35,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const lead = leadFromRequest(request);
+
   try {
     await ensureAdminSchema();
     await query(
       `INSERT INTO submissions (form_type, payload, email) VALUES ($1, $2, $3)`,
-      ["newsletter", JSON.stringify(parsed.data), parsed.data.email]
+      ["newsletter", JSON.stringify(withLead(parsed.data, lead)), parsed.data.email]
     );
+    await recordLead(lead, "newsletter", { email: parsed.data.email, path: "/" });
   } catch (err) {
     console.error("[newsletter signup] DB write failed:", err);
     return NextResponse.json(

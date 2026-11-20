@@ -3,6 +3,8 @@ import { contactFormSchema, inquiryRoutingMap } from "@/lib/validations/forms";
 import { query } from "@/lib/db/client";
 import { ensureAdminSchema } from "@/lib/admin/schema";
 import { escapeHtml, sendNotificationEmail } from "@/lib/email/client";
+import { leadFromRequest } from "@/lib/leads/attribution";
+import { recordLead, withLead } from "@/lib/leads/record";
 
 /**
  * TODO (remaining Milestone 4 work per Development Roadmap):
@@ -35,12 +37,15 @@ export async function POST(request: NextRequest) {
 
   const recipient = inquiryRoutingMap[parsed.data.inquiryType];
 
+  const lead = leadFromRequest(request);
+
   try {
     await ensureAdminSchema();
     await query(
       `INSERT INTO submissions (form_type, payload, email) VALUES ($1, $2, $3)`,
-      ["contact", JSON.stringify(parsed.data), parsed.data.email]
+      ["contact", JSON.stringify(withLead(parsed.data, lead)), parsed.data.email]
     );
+    await recordLead(lead, "contact", { email: parsed.data.email, path: "/contact" });
   } catch (err) {
     console.error("[contact submission] DB write failed:", err);
     return NextResponse.json(
@@ -61,6 +66,7 @@ export async function POST(request: NextRequest) {
         <p><strong>Name:</strong> ${escapeHtml(d.name)}</p>
         <p><strong>Email:</strong> ${escapeHtml(d.email)}</p>
         ${d.organization ? `<p><strong>Organization:</strong> ${escapeHtml(d.organization)}</p>` : ""}
+        ${lead ? `<p><strong>Lead:</strong> ${escapeHtml(lead.source)} / ${escapeHtml(lead.campaign)}</p>` : ""}
         <p><strong>Message:</strong></p>
         <p>${escapeHtml(d.message)}</p>
       `,

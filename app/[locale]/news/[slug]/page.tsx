@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { ArrowLeft } from "lucide-react";
 import { PageHero } from "@/components/PageHero";
+import { Button } from "@/components/Button";
 import { AccentLine } from "@/lib/accent";
 import { Reveal } from "@/components/motion/Reveal";
 import { getNewsPost, newsPosts } from "@/lib/content/news";
@@ -39,7 +40,7 @@ export default async function NewsArticlePage({
   if (!post) notFound();
 
   const t = await getTranslations({ locale, namespace: "news" });
-  const bodyKeys = [`${post.messageKey}P1`, `${post.messageKey}P2`, `${post.messageKey}P3`] as const;
+  const bodyKeys = [1, 2, 3, 4, 5, 6].map((n) => `${post.messageKey}P${n}`);
 
   const categoryLabel =
     post.category === "event"
@@ -67,11 +68,16 @@ export default async function NewsArticlePage({
       <article className="mx-auto max-w-3xl px-6 pb-20">
         <Reveal className="space-y-6 text-[15.5px] leading-[1.85] text-ink-muted">
           {bodyKeys.map((key) => {
-            const text = t(key);
-            if (!text || text === key) return null;
-            return <p key={key}>{text}</p>;
+            if (!t.has(key)) return null;
+            return <p key={key}>{t(key)}</p>;
           })}
         </Reveal>
+
+        {post.relatedHref && post.relatedLabelKey && t.has(post.relatedLabelKey) && (
+          <Reveal className="mt-10">
+            <Button href={`/${locale}${post.relatedHref}`}>{t(post.relatedLabelKey)}</Button>
+          </Reveal>
+        )}
 
         <Reveal className="mt-12">
           <Link

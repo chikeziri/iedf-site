@@ -150,6 +150,41 @@ export default async function HomePage({
       {/* ═══════════ Brand marquee ═══════════ */}
       <Marquee />
 
+      {/* ═══════════ Inauguration invitation ═══════════ */}
+      <section className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
+        <Reveal>
+          <div className="glass-strong grid grid-cols-1 items-center gap-8 overflow-hidden rounded-[2rem] p-5 sm:p-8 lg:grid-cols-[minmax(0,0.72fr)_1.15fr] lg:gap-12 lg:p-10">
+            <Image
+              src="/images/inauguration-invitation.jpg"
+              alt={t("invitationTitle")}
+              width={676}
+              height={1024}
+              className="h-auto w-full rounded-[1.4rem]"
+            />
+            <div>
+              <div className="mb-4 flex items-center gap-3 font-data text-[11px] font-medium uppercase tracking-[0.28em] text-gold-bright">
+                <span aria-hidden="true" className="hairline-gold h-px w-8" />
+                {t("invitationEyebrow")}
+              </div>
+              <h2 className="text-4xl leading-[1.08] sm:text-5xl">
+                <AccentLine text={t("invitationTitle")} accent={t("invitationAccent")} />
+              </h2>
+              <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-ink-muted">
+                {t("invitationText")}
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Button href={`/${locale}/inauguration`} size="lg">
+                  {t("invitationCta")}
+                </Button>
+                <Button href={`/${locale}/donate`} variant="secondary" size="lg">
+                  {t("invitationGive")}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Reveal>
+      </section>
+
       {/* ═══════════ Featured projects ═══════════ */}
       <section className="mx-auto max-w-6xl px-6 py-24 sm:py-28">
         <SectionHeading

@@ -14,9 +14,28 @@ export type NewsPost = {
   category: NewsCategory;
   /** Message-key suffixes under the `news` namespace (title/summary/body). */
   messageKey: string;
+  /** Optional path, without locale, for a page related to the story. */
+  relatedHref?: string;
+  relatedLabelKey?: string;
 };
 
 export const newsPosts: NewsPost[] = [
+  {
+    slug: "official-inauguration",
+    date: "2026-11-20",
+    category: "event",
+    messageKey: "postOfficial",
+    relatedHref: "/inauguration",
+    relatedLabelKey: "postOfficialRelated",
+  },
+  {
+    slug: "ikeduru-skills-acquisition-centre",
+    date: "2026-11-20",
+    category: "announcement",
+    messageKey: "postIsac",
+    relatedHref: "/donate",
+    relatedLabelKey: "postIsacRelated",
+  },
   {
     slug: "executives-inaugurated",
     date: "2026-04-01",

@@ -11,6 +11,8 @@ const staticPaths = [
   "/about-ikeduru",
   "/projects",
   "/join-us",
+  "/inauguration",
+  "/donate",
   "/contact",
   "/news",
   "/privacy",

@@ -3,6 +3,8 @@ import { memberApplicationSchema, givingIntentSchema } from "@/lib/validations/f
 import { query } from "@/lib/db/client";
 import { ensureAdminSchema } from "@/lib/admin/schema";
 import { escapeHtml, sendNotificationEmail } from "@/lib/email/client";
+import { leadFromRequest } from "@/lib/leads/attribution";
+import { recordLead, withLead } from "@/lib/leads/record";
 
 const interestLabels: Record<string, string> = {
   member: "Become a member",
@@ -64,12 +66,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const lead = leadFromRequest(request);
+
   try {
     await ensureAdminSchema();
     await query(
       `INSERT INTO submissions (form_type, payload, email) VALUES ($1, $2, $3)`,
-      ["member_signup", JSON.stringify(parsed.data), parsed.data.email]
+      ["member_signup", JSON.stringify(withLead(parsed.data, lead)), parsed.data.email]
     );
+    await recordLead(lead, "member", { email: parsed.data.email, path: "/join-us" });
   } catch (err) {
     console.error("[member signup] DB write failed:", err);
     return NextResponse.json(
@@ -101,6 +106,7 @@ export async function POST(request: NextRequest) {
         <p><strong>Interest:</strong> ${escapeHtml(label)}</p>
         ${data.name ? `<p><strong>Name:</strong> ${escapeHtml(data.name)}</p>` : ""}
         <p><strong>Email:</strong> ${escapeHtml(data.email)}</p>
+        ${lead ? `<p><strong>Lead:</strong> ${escapeHtml(lead.source)} / ${escapeHtml(lead.campaign)}</p>` : ""}
         ${lines}
       `,
     });

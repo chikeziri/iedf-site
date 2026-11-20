@@ -71,6 +71,7 @@ export default async function NewsPage({
             {newsPosts.map((post) => (
               <RevealItem key={post.slug}>
                 <SpotlightCard as="article" className="glass-hover rounded-3xl p-6 sm:p-8">
+                  <Link href={`/${locale}/news/${post.slug}`} className="block">
                   <div className="mb-3 flex flex-wrap items-center gap-3">
                     <span className="rounded-full border border-gold/25 bg-gold/10 px-3 py-1 font-data text-[10px] font-semibold uppercase tracking-[0.2em] text-gold-bright">
                       {categoryLabel(post.category)}
@@ -91,12 +92,10 @@ export default async function NewsPage({
                   <p className="mb-5 max-w-[62ch] text-[14.5px] leading-relaxed text-ink-muted">
                     {t(`${post.messageKey}Summary`)}
                   </p>
-                  <Link
-                    href={`/${locale}/news/${post.slug}`}
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-gold-bright transition-colors hover:text-gold-pale"
-                  >
+                  <span className="inline-flex items-center gap-1.5 text-sm font-medium text-gold-bright">
                     {t("readArticle")}
                     <ArrowUpRight size={15} />
+                  </span>
                   </Link>
                 </SpotlightCard>
               </RevealItem>

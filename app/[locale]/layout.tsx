@@ -6,6 +6,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { AuroraBackground } from "@/components/motion/AuroraBackground";
 import { ScrollProgress } from "@/components/motion/ScrollProgress";
+import { LeadCapture } from "@/components/LeadCapture";
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -34,6 +35,7 @@ export default async function LocaleLayout({
         </a>
         <AuroraBackground />
         <ScrollProgress />
+        <LeadCapture />
         <Header />
         <main id="main-content" className="relative">
           {children}

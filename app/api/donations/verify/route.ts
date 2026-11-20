@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyPaystackPayment } from "@/lib/payments/paystack";
 import { query } from "@/lib/db/client";
 import { ensureAdminSchema } from "@/lib/admin/schema";
+import { leadFromRequest } from "@/lib/leads/attribution";
+import { recordLead } from "@/lib/leads/record";
 
 /**
  * API route to verify Paystack donations and log them to the database.
@@ -29,6 +31,11 @@ export async function POST(request: NextRequest) {
     }
 
     const paymentData = verification.data;
+    const lead = leadFromRequest(request);
+    const metadata = {
+      ...(paymentData.metadata || {}),
+      ...(lead ? { leadSource: lead.source, leadCampaign: lead.campaign } : {}),
+    };
 
     // Store donation record in database
     try {
@@ -50,9 +57,14 @@ export async function POST(request: NextRequest) {
           paymentData.currency,
           paymentData.status,
           paymentData.paid_at,
-          JSON.stringify(paymentData.metadata || {}),
+          JSON.stringify(metadata),
         ]
       );
+      await recordLead(lead, "donation", {
+        email: paymentData.customer.email,
+        amount: paymentData.amount / 100,
+        path: "/donate",
+      });
     } catch (dbError) {
       console.error("[Donation DB error]", dbError);
       // Don't fail the response if DB write fails - payment was successful

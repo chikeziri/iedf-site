@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Heart, LayoutDashboard, LogOut, Mail, Newspaper, Users } from "lucide-react";
+import { Heart, LayoutDashboard, LogOut, Mail, Megaphone, Newspaper, Users } from "lucide-react";
 
 const links = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
@@ -10,6 +10,7 @@ const links = [
   { href: "/admin/members", label: "Members", icon: Users },
   { href: "/admin/newsletter", label: "Newsletter", icon: Newspaper },
   { href: "/admin/donations", label: "Donations", icon: Heart },
+  { href: "/admin/leads", label: "Leads", icon: Megaphone },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {

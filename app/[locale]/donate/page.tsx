@@ -6,6 +6,7 @@ import { DonationForm } from "@/components/DonationForm";
 import { SectionHeading } from "@/components/SectionHeading";
 import { Reveal } from "@/components/motion/Reveal";
 import { Heart, Target, Users } from "lucide-react";
+import { givingTiers } from "@/lib/content/giving-tiers";
 
 export const metadata: Metadata = {
   title: "Donate · Support IEDF",
@@ -32,8 +33,34 @@ export default async function DonatePage({
       />
 
       <div className="mx-auto max-w-6xl px-6 pb-28">
+        <Reveal>
+          <SectionHeading
+            eyebrow={t("tiersEyebrow")}
+            title={<AccentLine text={t("tiersTitle")} accent={t("tiersAccent")} />}
+            subline={t("tiersSubline")}
+          />
+          <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {givingTiers.map((tier) => {
+              const copy = {
+                platinum: { name: t("tierPlatinum"), range: t("tierPlatinumRange") },
+                gold: { name: t("tierGold"), range: t("tierGoldRange") },
+                silver: { name: t("tierSilver"), range: t("tierSilverRange") },
+                emerald: { name: t("tierEmerald"), range: t("tierEmeraldRange") },
+              }[tier.id];
+              return (
+                <div key={tier.id} className="glass rounded-3xl px-5 py-6">
+                  <div className="font-data text-[10px] uppercase tracking-[0.22em] text-gold-bright">
+                    {copy.name}
+                  </div>
+                  <p className="mt-3 font-display text-2xl leading-snug text-ink">{copy.range}</p>
+                </div>
+              );
+            })}
+          </div>
+        </Reveal>
+
         {/* Main content grid */}
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-5">
+        <div className="mt-16 grid grid-cols-1 gap-12 lg:grid-cols-5">
           {/* Left: Impact info */}
           <div className="space-y-12 lg:col-span-3">
             <Reveal>
