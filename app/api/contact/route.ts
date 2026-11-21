@@ -38,29 +38,8 @@ export async function POST(request: NextRequest) {
   const recipient = inquiryRoutingMap[parsed.data.inquiryType];
 
   const lead = leadFromRequest(request);
-
-  try {
-    await ensureAdminSchema();
-    await query(
-      `INSERT INTO submissions (form_type, payload, email) VALUES ($1, $2, $3)`,
-      ["contact", JSON.stringify(withLead(parsed.data, lead)), parsed.data.email]
-    );
-    await recordLead(lead, "contact", { email: parsed.data.email, path: "/contact" });
-  } catch (err) {
-    console.error("[contact submission] DB write failed:", err);
-    return NextResponse.json(
-      { success: false, errors: { _form: ["Something went wrong. Please try again or email us directly."] } },
-      { status: 500 }
-    );
-  }
-
-  console.log("[contact submission] saved, would route to:", recipient);
-
-  try {
-    const d = parsed.data;
-    await sendNotificationEmail({
-      subject: `New ${d.inquiryType} inquiry from ${d.name}`,
-      html: `
+  const d = parsed.data;
+  const html = `
         <h2>New Contact Form Submission</h2>
         <p><strong>Inquiry type:</strong> ${escapeHtml(d.inquiryType)} (would route to: ${escapeHtml(recipient)})</p>
         <p><strong>Name:</strong> ${escapeHtml(d.name)}</p>
@@ -69,13 +48,39 @@ export async function POST(request: NextRequest) {
         ${lead ? `<p><strong>Lead:</strong> ${escapeHtml(lead.source)} / ${escapeHtml(lead.campaign)}</p>` : ""}
         <p><strong>Message:</strong></p>
         <p>${escapeHtml(d.message)}</p>
-      `,
-    });
+      `;
+
+  let saved = false;
+  try {
+    await ensureAdminSchema();
+    await query(
+      `INSERT INTO submissions (form_type, payload, email) VALUES ($1, $2, $3)`,
+      ["contact", JSON.stringify(withLead(d, lead)), d.email]
+    );
+    saved = true;
+    await recordLead(lead, "contact", { email: d.email, path: "/contact" });
   } catch (err) {
-    // Non-fatal: submission is already saved above, so the person
-    // submitting the form still gets a success response either way.
+    console.error("[contact submission] DB write failed:", err);
+  }
+
+  let delivered = false;
+  try {
+    const sent = await sendNotificationEmail({
+      subject: `New ${d.inquiryType} inquiry from ${d.name}`,
+      html,
+    });
+    delivered = Boolean(sent) && !("skipped" in sent && sent.skipped);
+  } catch (err) {
     console.error("[contact submission] notification email failed:", err);
   }
 
+  if (!saved && !delivered) {
+    return NextResponse.json(
+      { success: false, errors: { _form: ["Something went wrong. Please try again or email us directly."] } },
+      { status: 500 }
+    );
+  }
+
+  console.log("[contact submission] saved:", saved, "emailed:", delivered, "would route to:", recipient);
   return NextResponse.json({ success: true });
 }

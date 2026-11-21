@@ -1,3 +1,4 @@
+import fs from "fs";
 import { Pool as PgPool, QueryResultRow } from "pg";
 import mysql, { Pool as MysqlPool } from "mysql2/promise";
 
@@ -38,18 +39,36 @@ function postgres() {
   return pgPool;
 }
 
+const MYSQL_SOCKETS = [
+  "/var/lib/mysql/mysql.sock",
+  "/tmp/mysql.sock",
+  "/var/run/mysqld/mysqld.sock",
+];
+
 function mysqlPoolFromUrl() {
   if (!mysqlPool) {
     const parsed = new URL(databaseUrl());
+    const user = decodeURIComponent(parsed.username);
+    const password = decodeURIComponent(parsed.password);
+    const database = decodeURIComponent(parsed.pathname.replace(/^\//, ""));
+    const socketPath =
+      process.env.MYSQL_SOCKET || MYSQL_SOCKETS.find((path) => fs.existsSync(path));
+    // WhoGoHost grants the database user on localhost, which is the Unix
+    // socket. Node's "localhost" often tries IPv6 first and the connection
+    // hangs until it times out, so the contact form returns a 500.
     mysqlPool = mysql.createPool({
-      host: parsed.hostname,
-      port: parsed.port ? Number(parsed.port) : 3306,
-      user: decodeURIComponent(parsed.username),
-      password: decodeURIComponent(parsed.password),
-      database: decodeURIComponent(parsed.pathname.replace(/^\//, "")),
+      ...(socketPath
+        ? { socketPath }
+        : {
+            host: parsed.hostname === "localhost" ? "127.0.0.1" : parsed.hostname,
+            port: parsed.port ? Number(parsed.port) : 3306,
+          }),
+      user,
+      password,
+      database,
       waitForConnections: true,
       connectionLimit: 5,
-      timezone: "Z",
+      connectTimeout: 8000,
       dateStrings: true,
     });
   }
@@ -96,7 +115,9 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
   }
 
   if (dbDialect() === "mysql") {
-    const [result] = await mysqlPoolFromUrl().execute(placeholders(text), params as never[]);
+    // query(), not execute(). MySQL prepared statements reject CREATE TABLE,
+    // so ensureAdminSchema() was throwing and every form returned 500.
+    const [result] = await mysqlPoolFromUrl().query(placeholders(text), params as never[]);
     if (Array.isArray(result)) {
       return { rows: (result as T[]).map((row) => normalizeRow(row)) };
     }

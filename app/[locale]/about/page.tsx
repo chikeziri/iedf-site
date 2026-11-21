@@ -72,9 +72,11 @@ export default async function AboutPage({
           </div>
         </Reveal>
 
-        {/* Sidebar: founding facts */}
-        <Reveal delay={0.15}>
-          <SpotlightCard className="glass-hover sticky top-28 rounded-3xl p-6">
+        {/* Sidebar: founding facts. Sticky only on the desktop column.
+            On a phone the card is inside a transformed reveal, and iOS
+            paints that sticky card over the Vision & Mission heading. */}
+        <Reveal delay={0.15} className="relative z-0 lg:sticky lg:top-28 lg:self-start lg:h-fit">
+          <SpotlightCard className="glass-hover rounded-3xl p-6">
             <div className="mb-4 font-data text-[10px] font-semibold uppercase tracking-[0.28em] text-gold-bright">
               {t("factsTitle")}
             </div>
@@ -93,14 +95,14 @@ export default async function AboutPage({
       </section>
 
       {/* Vision & Mission — glass twin cards */}
-      <section id="vision-mission" className="mx-auto mb-20 max-w-6xl scroll-mt-28 px-6">
+      <section id="vision-mission" className="relative z-10 mx-auto mb-20 max-w-6xl scroll-mt-28 px-6">
         <SectionHeading
           eyebrow={t("vmEyebrow")}
           title={
             <AccentLine text={t("vmTitle")} accent={t("vmAccent")} />
           }
         />
-        <RevealGroup className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <RevealGroup className="mt-10 grid grid-cols-1 gap-8 md:grid-cols-2">
           <RevealItem>
             <SpotlightCard className="glass-hover h-full rounded-3xl p-8 sm:p-10">
               <div className="mb-4 font-data text-[10px] font-semibold uppercase tracking-[0.28em] text-gold-bright">

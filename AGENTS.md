@@ -4,7 +4,7 @@ Living context file for any AI agent (or human) resuming work on this repo.
 **Read this first — it tells you what was done, how things work, and where to
 pick up next.** Keep it updated at the end of every work session.
 
-> Last session completed: **2026-11-19 — Inauguration invitation and giving circles**
+> Last session completed: **2026-11-21 — Contact form and About mobile layout**
 
 ---
 
@@ -129,6 +129,14 @@ cp .env.example .env.local    # DATABASE_URL, RESEND_*, ADMIN_*, SITE_URL
 
 ## 9. Session log
 
+- **2026-11-21 — Contact form and About mobile.** Contact failed on WhoGoHost
+  because MySQL `execute()` cannot run `CREATE TABLE`, so every submission
+  returned 500. The MySQL client now uses `query()`, prefers the local socket
+  (else 127.0.0.1), and a tracking failure cannot fail the form. If the
+  database write fails but the notification email sends, the visitor still
+  sees success. About: the founding-facts card is sticky only from `lg` up,
+  so on a phone it no longer covers the Vision & Mission heading. Vision and
+  Mission stack with a gap below `md`.
 - **2026-11-08/09 — Emerald Luxe overhaul (commit `adcffa5`).** Complete visual
   redesign: dark-gradient glass system, Instrument Serif editorial type, motion
   primitives, floating glass header, cinematic Home, every page restyled.

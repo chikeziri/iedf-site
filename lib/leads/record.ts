@@ -7,18 +7,22 @@ export async function recordLead(
   details: { path?: string; email?: string; amount?: number } = {}
 ) {
   if (!lead) return;
-  await query(
-    `INSERT INTO lead_touches (source, campaign, kind, path, email, amount)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
-    [
-      lead.source,
-      lead.campaign,
-      kind,
-      details.path?.slice(0, 255) || null,
-      details.email?.slice(0, 255) || null,
-      details.amount ?? null,
-    ]
-  );
+  try {
+    await query(
+      `INSERT INTO lead_touches (source, campaign, kind, path, email, amount)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        lead.source,
+        lead.campaign,
+        kind,
+        details.path?.slice(0, 255) || null,
+        details.email?.slice(0, 255) || null,
+        details.amount ?? null,
+      ]
+    );
+  } catch (err) {
+    console.error("[lead] record failed:", err);
+  }
 }
 
 export function withLead<T extends object>(data: T, lead: Lead | null) {
