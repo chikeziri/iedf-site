@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
       `;
 
   let saved = false;
+  let failure = "FAILED";
   try {
     await ensureAdminSchema();
     await query(
@@ -60,7 +61,8 @@ export async function POST(request: NextRequest) {
     saved = true;
     await recordLead(lead, "contact", { email: d.email, path: "/contact" });
   } catch (err) {
-    console.error("[contact submission] DB write failed:", err);
+    failure = err && typeof err === "object" && "code" in err ? String(err.code) : "DB";
+    console.error("[contact submission] DB write failed:", failure);
   }
 
   let delivered = false;
@@ -68,15 +70,23 @@ export async function POST(request: NextRequest) {
     const sent = await sendNotificationEmail({
       subject: `New ${d.inquiryType} inquiry from ${d.name}`,
       html,
+      replyTo: d.email,
     });
     delivered = Boolean(sent) && !("skipped" in sent && sent.skipped);
   } catch (err) {
+    if (!saved) {
+      failure = err && typeof err === "object" && "code" in err ? String(err.code) : failure;
+    }
     console.error("[contact submission] notification email failed:", err);
   }
 
   if (!saved && !delivered) {
     return NextResponse.json(
-      { success: false, errors: { _form: ["Something went wrong. Please try again or email us directly."] } },
+      {
+        success: false,
+        errors: { _form: ["Something went wrong. Please try again or email us directly."] },
+        code: failure,
+      },
       { status: 500 }
     );
   }

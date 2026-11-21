@@ -4,7 +4,7 @@ Living context file for any AI agent (or human) resuming work on this repo.
 **Read this first — it tells you what was done, how things work, and where to
 pick up next.** Keep it updated at the end of every work session.
 
-> Last session completed: **2026-11-21 — Contact form and About mobile layout**
+> Last session completed: **2026-11-21 — Contact form mail fallback**
 
 ---
 
@@ -129,6 +129,7 @@ cp .env.example .env.local    # DATABASE_URL, RESEND_*, ADMIN_*, SITE_URL
 
 ## 9. Session log
 
+- **2026-11-21 — Contact form still failing after the MySQL query change.** The live request waited about 7s and returned 500, so the database host was not answering. MySQL now tries the server socket before TCP. Mail tries the local SMTP port, then the server sendmail program, so a message can still reach info@iedf.org.ng when the database is down.
 - **2026-11-21 — Contact form and About mobile.** Contact failed on WhoGoHost
   because MySQL `execute()` cannot run `CREATE TABLE`, so every submission
   returned 500. The MySQL client now uses `query()`, prefers the local socket

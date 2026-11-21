@@ -1,6 +1,8 @@
 import fs from "fs";
+import os from "os";
+import path from "path";
 import { Pool as PgPool, QueryResultRow } from "pg";
-import mysql, { Pool as MysqlPool } from "mysql2/promise";
+import mysql, { type Connection, Pool as MysqlPool } from "mysql2/promise";
 
 /**
  * One query helper for both databases.
@@ -43,36 +45,98 @@ const MYSQL_SOCKETS = [
   "/var/lib/mysql/mysql.sock",
   "/tmp/mysql.sock",
   "/var/run/mysqld/mysqld.sock",
+  "/usr/local/mysql/mysql.sock",
 ];
 
-function mysqlPoolFromUrl() {
-  if (!mysqlPool) {
-    const parsed = new URL(databaseUrl());
-    const user = decodeURIComponent(parsed.username);
-    const password = decodeURIComponent(parsed.password);
-    const database = decodeURIComponent(parsed.pathname.replace(/^\//, ""));
-    const socketPath =
-      process.env.MYSQL_SOCKET || MYSQL_SOCKETS.find((path) => fs.existsSync(path));
-    // WhoGoHost grants the database user on localhost, which is the Unix
-    // socket. Node's "localhost" often tries IPv6 first and the connection
-    // hangs until it times out, so the contact form returns a 500.
+type MysqlTarget = { socketPath: string } | { host: string; port: number };
+
+function socketFromConfigs() {
+  const files = [
+    "/etc/my.cnf",
+    "/etc/mysql/my.cnf",
+    "/usr/local/directadmin/conf/mysql.conf",
+    path.join(os.homedir(), ".my.cnf"),
+  ];
+  const found: string[] = [];
+  for (const file of files) {
+    try {
+      const text = fs.readFileSync(file, "utf8");
+      for (const match of text.matchAll(/^\s*socket\s*=\s*(\S+)/gm)) {
+        if (match[1]) found.push(match[1]);
+      }
+    } catch {
+      // The config is not readable from this account.
+    }
+  }
+  return found;
+}
+
+function mysqlTargets(parsed: URL): MysqlTarget[] {
+  const port = parsed.port ? Number(parsed.port) : 3306;
+  const sockets = [
+    process.env.MYSQL_SOCKET,
+    ...socketFromConfigs(),
+    ...MYSQL_SOCKETS,
+  ].filter((value): value is string => Boolean(value));
+  const targets: MysqlTarget[] = [...new Set(sockets)]
+    .filter((socketPath) => fs.existsSync(socketPath))
+    .map((socketPath) => ({ socketPath }));
+  const host = parsed.hostname === "localhost" ? "127.0.0.1" : parsed.hostname;
+  targets.push({ host, port });
+  if (parsed.hostname !== "localhost") targets.push({ host: "localhost", port });
+  return targets;
+}
+
+function targetLabel(target: MysqlTarget) {
+  return "socketPath" in target ? "socket" : target.host;
+}
+
+async function mysqlPoolFromUrl() {
+  if (mysqlPool) return mysqlPool;
+
+  const parsed = new URL(databaseUrl());
+  const user = decodeURIComponent(parsed.username);
+  const password = decodeURIComponent(parsed.password);
+  const database = decodeURIComponent(parsed.pathname.replace(/^\//, ""));
+  let lastError: unknown;
+
+  // WhoGoHost accepts this database user on the Unix socket. TCP to
+  // 127.0.0.1 is often dropped, so a single TCP attempt hangs the form.
+  for (const target of mysqlTargets(parsed)) {
+    let conn: Connection | null = null;
+    try {
+      conn = await mysql.createConnection({
+        ...target,
+        user,
+        password,
+        database,
+        connectTimeout: 3000,
+        dateStrings: true,
+      });
+      await conn.ping();
+    } catch (err) {
+      lastError = err;
+      const code = err && typeof err === "object" && "code" in err ? String(err.code) : "FAILED";
+      console.error(`[db] mysql ${targetLabel(target)} failed: ${code}`);
+      continue;
+    } finally {
+      await conn?.end().catch(() => undefined);
+    }
+
     mysqlPool = mysql.createPool({
-      ...(socketPath
-        ? { socketPath }
-        : {
-            host: parsed.hostname === "localhost" ? "127.0.0.1" : parsed.hostname,
-            port: parsed.port ? Number(parsed.port) : 3306,
-          }),
+      ...target,
       user,
       password,
       database,
       waitForConnections: true,
       connectionLimit: 5,
-      connectTimeout: 8000,
+      connectTimeout: 5000,
       dateStrings: true,
     });
+    return mysqlPool;
   }
-  return mysqlPool;
+
+  throw lastError instanceof Error ? lastError : new Error("MySQL connection failed");
 }
 
 function placeholders(sql: string) {
@@ -117,7 +181,11 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
   if (dbDialect() === "mysql") {
     // query(), not execute(). MySQL prepared statements reject CREATE TABLE,
     // so ensureAdminSchema() was throwing and every form returned 500.
-    const [result] = await mysqlPoolFromUrl().query(placeholders(text), params as never[]);
+    const pool = await mysqlPoolFromUrl();
+    const sql = placeholders(text);
+    const [result] = params
+      ? await pool.query(sql, params as never[])
+      : await pool.query(sql);
     if (Array.isArray(result)) {
       return { rows: (result as T[]).map((row) => normalizeRow(row)) };
     }

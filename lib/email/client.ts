@@ -1,3 +1,4 @@
+import fs from "fs";
 import { Resend } from "resend";
 import nodemailer from "nodemailer";
 
@@ -25,7 +26,20 @@ function smtpReady() {
   return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASSWORD);
 }
 
-/** WhoGoHost mailbox on port 587. Used when SMTP_HOST, SMTP_USER and SMTP_PASSWORD are set. */
+function smtpPassword() {
+  // A copied panel value can keep the HTML entity instead of the character.
+  return (process.env.SMTP_PASSWORD || "").replace(/&amp;/g, "&");
+}
+
+function mailFrom() {
+  return process.env.SMTP_FROM || process.env.SMTP_USER || "IEDF <noreply@iedf.org.ng>";
+}
+
+function mailTo(explicit?: string) {
+  return explicit || process.env.ADMIN_NOTIFICATION_EMAIL || "info@iedf.org.ng";
+}
+
+/** WhoGoHost mailbox. The public mail hostname often cannot be reached from the server itself. */
 async function sendViaSmtp({
   to,
   subject,
@@ -39,43 +53,108 @@ async function sendViaSmtp({
   text?: string;
   replyTo?: string;
 }) {
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: false,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASSWORD,
-    },
-  });
+  const configured = process.env.SMTP_HOST || "127.0.0.1";
+  const hosts = configured === "127.0.0.1" || configured === "localhost"
+    ? ["127.0.0.1"]
+    : ["127.0.0.1", configured];
+  let lastError: unknown;
 
+  for (const host of hosts) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host,
+        port: Number(process.env.SMTP_PORT || 587),
+        secure: false,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: smtpPassword(),
+        },
+        connectionTimeout: 4000,
+        greetingTimeout: 4000,
+        socketTimeout: 8000,
+        tls: { rejectUnauthorized: false },
+      });
+      const info = await transporter.sendMail({
+        from: mailFrom(),
+        to,
+        subject,
+        html,
+        text,
+        replyTo,
+      });
+      return { id: info.messageId };
+    } catch (err) {
+      lastError = err;
+      const code = err && typeof err === "object" && "code" in err ? String(err.code) : "FAILED";
+      console.error(`[email] smtp ${host} failed: ${code}`);
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("SMTP send failed");
+}
+
+async function sendViaSendmail({
+  to,
+  subject,
+  html,
+  text,
+  replyTo,
+}: {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+  replyTo?: string;
+}) {
+  const sendmailPath = ["/usr/sbin/sendmail", "/usr/lib/sendmail"].find((candidate) =>
+    fs.existsSync(candidate)
+  );
+  if (!sendmailPath) {
+    throw Object.assign(new Error("sendmail is not available"), { code: "NO_SENDMAIL" });
+  }
+
+  const transporter = nodemailer.createTransport({
+    sendmail: true,
+    newline: "unix",
+    path: sendmailPath,
+  });
   const info = await transporter.sendMail({
-    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    from: mailFrom(),
     to,
     subject,
     html,
     text,
-    replyTo: replyTo || process.env.ADMIN_NOTIFICATION_EMAIL || undefined,
+    replyTo,
   });
-
   return { id: info.messageId };
 }
 
 export async function sendNotificationEmail({
   subject,
   html,
+  replyTo,
 }: {
   subject: string;
   html: string;
+  replyTo?: string;
 }) {
-  const toEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
+  const toEmail = mailTo();
 
   if (smtpReady()) {
-    if (!toEmail) {
-      console.warn("[email] Skipped — ADMIN_NOTIFICATION_EMAIL is not set.");
-      return { skipped: true };
+    try {
+      return await sendViaSmtp({ to: toEmail, subject, html, replyTo });
+    } catch (err) {
+      console.error("[email] smtp notification failed:", err instanceof Error ? err.message : err);
     }
-    return sendViaSmtp({ to: toEmail, subject, html });
+  }
+
+  try {
+    return await sendViaSendmail({ to: toEmail, subject, html, replyTo });
+  } catch (err) {
+    const code = err && typeof err === "object" && "code" in err ? String(err.code) : "";
+    if (code !== "NO_SENDMAIL") {
+      console.error("[email] sendmail notification failed:", err instanceof Error ? err.message : err);
+    }
   }
 
   const apiKey = process.env.RESEND_API_KEY;
@@ -126,7 +205,13 @@ export async function sendReplyEmail({
   html: string;
 }) {
   if (smtpReady()) {
-    return sendViaSmtp({ to, subject, html, text });
+    return sendViaSmtp({
+      to,
+      subject,
+      html,
+      text,
+      replyTo: process.env.ADMIN_NOTIFICATION_EMAIL,
+    });
   }
 
   const apiKey = process.env.RESEND_API_KEY;
