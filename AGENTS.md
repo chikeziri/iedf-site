@@ -4,7 +4,7 @@ Living context file for any AI agent (or human) resuming work on this repo.
 **Read this first — it tells you what was done, how things work, and where to
 pick up next.** Keep it updated at the end of every work session.
 
-> Last session completed: **2026-11-22 — Ama Nwaozuzu sign photo**
+> Last session completed: **2026-11-22 — Admin database connection**
 
 ---
 
@@ -129,6 +129,7 @@ cp .env.example .env.local    # DATABASE_URL, RESEND_*, ADMIN_*, SITE_URL
 
 ## 9. Session log
 
+- **2026-11-22 — Admin database.** Overview stayed on "DATABASE_URL is not set" after the panel variable was added. `server.js` now reads `.env` from the app folder before Next changes directory, and MySQL tries every visible socket before TCP.
 - **2026-11-22 — Motor park photo.** Replaced `public/images/project-motor-park.jpg` with the Brookside Motor Park / Ama Nwaozuzu sign photograph.
 - **2026-11-21 — Motor park photo.** Replaced `public/images/project-motor-park.jpg` with the courtyard photograph supplied for Ama Nwaozuzu Motor Park, Iho. The project page already points at that file.
 - **2026-11-21 — Contact form still failing after the MySQL query change.** The live request waited about 7s and returned 500, so the database host was not answering. MySQL now tries the server socket before TCP. Mail tries the local SMTP port, then the server sendmail program, so a message can still reach info@iedf.org.ng when the database is down.

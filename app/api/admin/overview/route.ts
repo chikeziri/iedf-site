@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminNotConfigured, adminSessionToken, isAdminRequest, unauthorized } from "@/lib/admin/auth";
 import { ensureAdminSchema } from "@/lib/admin/schema";
-import { query } from "@/lib/db/client";
+import { databaseErrorMessage, query } from "@/lib/db/client";
 
 export async function GET(request: NextRequest) {
   if (!adminSessionToken()) return adminNotConfigured();
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     console.error("[admin overview]", err);
     return NextResponse.json(
-      { error: "Database query failed. Is DATABASE_URL set?" },
+      { error: databaseErrorMessage(err) },
       { status: 500 }
     );
   }

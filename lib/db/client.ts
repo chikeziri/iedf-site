@@ -22,7 +22,36 @@ export type QueryResult<T extends QueryResultRow = QueryResultRow> = {
 };
 
 function databaseUrl() {
-  return process.env.DATABASE_URL || "";
+  let url = (process.env.DATABASE_URL || "").trim();
+  if (
+    (url.startsWith('"') && url.endsWith('"')) ||
+    (url.startsWith("'") && url.endsWith("'"))
+  ) {
+    url = url.slice(1, -1).trim();
+  }
+  return url;
+}
+
+export function databaseErrorMessage(err: unknown) {
+  const code =
+    err && typeof err === "object" && "code" in err ? String(err.code) : "";
+  const message = err instanceof Error ? err.message : "";
+  if (!databaseUrl() || message.includes("DATABASE_URL is not set")) {
+    return "The app cannot see DATABASE_URL. Create a file named .env in the app folder with that line, then restart.";
+  }
+  if (code === "ER_ACCESS_DENIED_ERROR") {
+    return "MySQL refused the database user or password in DATABASE_URL.";
+  }
+  if (code === "ENOENT") {
+    return "DATABASE_URL is set, but the MySQL socket was not found.";
+  }
+  if (code === "ETIMEDOUT" || code === "ECONNREFUSED" || code === "ENOTFOUND") {
+    return "DATABASE_URL is set, but MySQL did not accept the connection.";
+  }
+  if (message.startsWith("Invalid URL") || code === "ERR_INVALID_URL") {
+    return "DATABASE_URL must look like mysql://user:password@localhost:3306/iedforgn_db.";
+  }
+  return "The database refused the query. Check DATABASE_URL, then restart.";
 }
 
 export function dbDialect(): DbDialect {
@@ -44,9 +73,13 @@ function postgres() {
 const MYSQL_SOCKETS = [
   "/var/lib/mysql/mysql.sock",
   "/tmp/mysql.sock",
+  "/var/tmp/mysql.sock",
   "/var/run/mysqld/mysqld.sock",
+  "/run/mysqld/mysqld.sock",
   "/usr/local/mysql/mysql.sock",
 ];
+
+const SOCKET_DIRS = ["/var/lib/mysql", "/tmp", "/var/tmp", "/var/run/mysqld", "/run/mysqld"];
 
 type MysqlTarget = { socketPath: string } | { host: string; port: number };
 
@@ -71,16 +104,33 @@ function socketFromConfigs() {
   return found;
 }
 
+function socketsInDirectories() {
+  const found: string[] = [];
+  for (const dir of SOCKET_DIRS) {
+    try {
+      for (const name of fs.readdirSync(dir)) {
+        if (name.endsWith(".sock")) found.push(path.join(dir, name));
+      }
+    } catch {
+      // This directory is not visible to the app.
+    }
+  }
+  return found;
+}
+
 function mysqlTargets(parsed: URL): MysqlTarget[] {
   const port = parsed.port ? Number(parsed.port) : 3306;
   const sockets = [
     process.env.MYSQL_SOCKET,
     ...socketFromConfigs(),
+    ...socketsInDirectories(),
     ...MYSQL_SOCKETS,
   ].filter((value): value is string => Boolean(value));
-  const targets: MysqlTarget[] = [...new Set(sockets)]
-    .filter((socketPath) => fs.existsSync(socketPath))
-    .map((socketPath) => ({ socketPath }));
+  const unique = [...new Set(sockets)];
+  const existing = unique.filter((socketPath) => fs.existsSync(socketPath));
+  const targets: MysqlTarget[] = (existing.length > 0 ? existing : unique).map((socketPath) => ({
+    socketPath,
+  }));
   const host = parsed.hostname === "localhost" ? "127.0.0.1" : parsed.hostname;
   targets.push({ host, port });
   if (parsed.hostname !== "localhost") targets.push({ host: "localhost", port });
