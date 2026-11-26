@@ -6,6 +6,7 @@ import { Marquee } from "@/components/Marquee";
 import { MilestoneLine } from "@/components/MilestoneLine";
 import { ProjectCard } from "@/components/ProjectCard";
 import { NewsletterForm } from "@/components/NewsletterForm";
+import { InaugurationJingle } from "@/components/InaugurationJingle";
 import { SectionHeading } from "@/components/SectionHeading";
 import { AccentLine } from "@/lib/accent";
 import { Reveal, RevealGroup, RevealItem } from "@/components/motion/Reveal";
@@ -47,6 +48,7 @@ export default async function HomePage({
 
   return (
     <>
+      <InaugurationJingle />
       {/* ═══════════ HERO — phone-first, glassy, brand-forward ═══════════ */}
       <section className="relative flex min-h-[100svh] flex-col px-5 pb-6 pt-[6.75rem] sm:px-6 sm:pb-14 sm:pt-36">
         {/* Local atmosphere — gold + emerald washes behind the type */}
