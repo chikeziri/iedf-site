@@ -4,7 +4,7 @@ Living context file for any AI agent (or human) resuming work on this repo.
 **Read this first — it tells you what was done, how things work, and where to
 pick up next.** Keep it updated at the end of every work session.
 
-> Last session completed: **2026-11-26 — Inauguration flyer and jingle**
+> Last session completed: **2026-11-26 — Jingle play fix**
 
 ---
 
@@ -129,6 +129,7 @@ cp .env.example .env.local    # DATABASE_URL, RESEND_*, ADMIN_*, SITE_URL
 
 ## 9. Session log
 
+- **2026-11-26 — Jingle play fix.** Home jingle now uses a real audio element, starts on the first page tap when the browser blocks autoplay, and shows “Tap to hear the jingle” until sound begins. The speaker button starts playback instead of muting first.
 - **2026-11-26 — Inauguration flyer and jingle.** Replaced `public/images/inauguration-invitation.jpg` with the updated flyer. Added Igbo inauguration jingle at `public/audio/inauguration-jingle-igbo.mp3`; home page starts it on landing (or on the first tap if the browser blocks autoplay) with a mute control.
 - **2026-11-22 — Motor park photo.** Replaced `public/images/project-motor-park.jpg` with the shorter Brookside Motor Park sign view.
 - **2026-11-22 — Admin database.** Overview stayed on "DATABASE_URL is not set" after the panel variable was added. `server.js` now reads `.env` from the app folder before Next changes directory, and MySQL tries every visible socket before TCP.

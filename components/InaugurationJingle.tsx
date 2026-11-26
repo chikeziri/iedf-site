@@ -5,109 +5,124 @@ import { useTranslations } from "next-intl";
 import { Volume2, VolumeX } from "lucide-react";
 
 const SRC = "/audio/inauguration-jingle-igbo.mp3";
-const SESSION_KEY = "iedf_jingle_started";
 
 /**
- * Plays the Igbo inauguration jingle when someone lands on the home page.
- * Browsers often block sound until the first tap; if that happens, the first
- * pointer or key press starts the track. A mute control stays on screen.
+ * Plays the Igbo inauguration jingle on the home page. Browsers usually block
+ * sound until the first tap, so we try on load and again on the first gesture.
+ * The control starts the track when it is stopped, and mutes it when it plays.
  */
 export function InaugurationJingle() {
   const t = useTranslations("home");
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const startedRef = useRef(false);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
+  const [needsTap, setNeedsTap] = useState(true);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const audio = audioRef.current;
+    if (!audio) return;
 
-    const audio = new Audio(SRC);
     audio.preload = "auto";
     audio.loop = false;
-    audioRef.current = audio;
+    audio.setAttribute("playsinline", "true");
 
-    const markPlaying = () => setPlaying(true);
+    const markPlaying = () => {
+      setPlaying(true);
+      setNeedsTap(false);
+      startedRef.current = true;
+    };
     const markStopped = () => setPlaying(false);
+
     audio.addEventListener("play", markPlaying);
+    audio.addEventListener("playing", markPlaying);
     audio.addEventListener("pause", markStopped);
     audio.addEventListener("ended", markStopped);
 
-    let unlocked = false;
-    const tryPlay = () => {
-      if (unlocked || !audioRef.current) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const start = () => {
+      if (!audioRef.current || startedRef.current) return;
+      audioRef.current.muted = false;
+      setMuted(false);
       void audioRef.current
         .play()
         .then(() => {
-          unlocked = true;
-          try {
-            sessionStorage.setItem(SESSION_KEY, "1");
-          } catch {
-            // Private browsing can block sessionStorage.
-          }
+          startedRef.current = true;
+          setNeedsTap(false);
         })
         .catch(() => {
-          // Waiting for the first visitor gesture.
+          setNeedsTap(true);
         });
     };
 
-    const alreadyStarted = (() => {
-      try {
-        return sessionStorage.getItem(SESSION_KEY) === "1";
-      } catch {
-        return false;
-      }
-    })();
-
-    if (!alreadyStarted) {
-      tryPlay();
+    if (!reduceMotion) {
+      start();
     }
 
-    const unlock = () => {
-      tryPlay();
-      if (unlocked) {
-        window.removeEventListener("pointerdown", unlock);
-        window.removeEventListener("keydown", unlock);
-        window.removeEventListener("touchstart", unlock);
-      }
+    const onFirstGesture = () => {
+      start();
     };
 
-    window.addEventListener("pointerdown", unlock, { passive: true });
-    window.addEventListener("keydown", unlock);
-    window.addEventListener("touchstart", unlock, { passive: true });
+    window.addEventListener("pointerdown", onFirstGesture, { passive: true });
+    window.addEventListener("touchstart", onFirstGesture, { passive: true });
+    window.addEventListener("keydown", onFirstGesture);
 
     return () => {
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
-      window.removeEventListener("touchstart", unlock);
+      window.removeEventListener("pointerdown", onFirstGesture);
+      window.removeEventListener("touchstart", onFirstGesture);
+      window.removeEventListener("keydown", onFirstGesture);
       audio.removeEventListener("play", markPlaying);
+      audio.removeEventListener("playing", markPlaying);
       audio.removeEventListener("pause", markStopped);
       audio.removeEventListener("ended", markStopped);
       audio.pause();
-      audio.src = "";
-      audioRef.current = null;
     };
   }, []);
 
-  function toggleMute() {
+  function handleControl(event: React.MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation();
     const audio = audioRef.current;
     if (!audio) return;
+
+    // First tap must start sound. A follow-up tap mutes or unmutes.
+    if (needsTap || audio.paused || audio.ended) {
+      audio.muted = false;
+      setMuted(false);
+      void audio
+        .play()
+        .then(() => {
+          startedRef.current = true;
+          setNeedsTap(false);
+        })
+        .catch(() => setNeedsTap(true));
+      return;
+    }
+
     audio.muted = !audio.muted;
     setMuted(audio.muted);
-    if (audio.paused) {
-      void audio.play().catch(() => undefined);
-    }
   }
 
+  const showPlay = needsTap || muted || !playing;
+
   return (
-    <button
-      type="button"
-      onClick={toggleMute}
-      aria-pressed={muted || !playing}
-      aria-label={muted || !playing ? t("jinglePlay") : t("jingleMute")}
-      className="glass fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border-gold/25 text-gold-pale shadow-[0_10px_40px_-12px_rgba(5,11,8,0.8)] transition-all duration-300 hover:border-gold/50 hover:text-gold-bright sm:bottom-8 sm:right-8"
-    >
-      {muted || !playing ? <VolumeX size={18} strokeWidth={1.8} /> : <Volume2 size={18} strokeWidth={1.8} />}
-    </button>
+    <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-2 sm:bottom-8 sm:right-8">
+      {needsTap && (
+        <p className="glass max-w-[11rem] rounded-2xl border-gold/20 px-3 py-2 text-right font-data text-[10px] uppercase tracking-[0.18em] text-gold-pale">
+          {t("jingleTap")}
+        </p>
+      )}
+      <button
+        type="button"
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={handleControl}
+        aria-pressed={!showPlay}
+        aria-label={showPlay ? t("jinglePlay") : t("jingleMute")}
+        className="glass flex h-12 w-12 items-center justify-center rounded-full border-gold/25 text-gold-pale shadow-[0_10px_40px_-12px_rgba(5,11,8,0.8)] transition-all duration-300 hover:border-gold/50 hover:text-gold-bright"
+      >
+        {showPlay ? <VolumeX size={18} strokeWidth={1.8} /> : <Volume2 size={18} strokeWidth={1.8} />}
+      </button>
+      <audio ref={audioRef} src={SRC} preload="auto" playsInline />
+    </div>
   );
 }
